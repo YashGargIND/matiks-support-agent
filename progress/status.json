@@ -1,6 +1,6 @@
 {
   "project": "Matiks Support Agent",
-  "updated_at": "2026-10-03T13:20:34.036086+00:00",
+  "updated_at": "2026-10-03T13:22:48.287952+00:00",
   "summary": "ClickUp dashboard sync fixed and verified in the browser against the live read-only source. Ready for human testing; broader implementation stays paused.",
   "counts": {
     "real_reports": 679,
@@ -95,7 +95,7 @@
     {
       "label": "GitHub automated checks",
       "status": "passed",
-      "detail": "Python checks and frontend build passed for checkpoint 5bf9f21."
+      "detail": "Python tests, lint, secret-file checks and frontend build passed on GitHub for ClickUp fix checkpoint 46acc33."
     },
     {
       "label": "ClickUp dashboard sync",
@@ -105,7 +105,7 @@
   ],
   "blockers": [
     "Admin moderation session token is not present yet.",
-    "No formal severity policy; human reports usual 7\u201330 day messaging bans, subject to review.",
+    "No formal severity policy; human reports usual 7–30 day messaging bans, subject to review.",
     "Paid streak pricing and completed-order delivery semantics are unverified.",
     "Real evaluation labels, manual timing comparison and final demo recording remain pending."
   ],
@@ -115,9 +115,9 @@
     "status": "pushed",
     "owner_access": "automatic",
     "teammate_invites": "awaiting_usernames",
-    "checkpoint_commit": "5bf9f21c2390a0c4432a0a282a61c7d75b653268",
+    "checkpoint_commit": "46acc33e136b9d082e4031affdcba6c123836a40",
     "ci_status": "success",
-    "ci_url": "https://github.com/YashGargIND/matiks-support-agent/actions/runs/37124399459"
+    "ci_url": "https://github.com/YashGargIND/matiks-support-agent/actions/runs/37125875966"
   },
   "history": [
     {
