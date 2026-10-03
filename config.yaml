@@ -1,0 +1,48 @@
+channels:
+  - support.channels.clickup:ClickUpAdapter
+  - support.channels.email:EmailAdapter
+clickup_initial_lookback_days: 7
+clickup_fields:
+  # Verified via connected ClickUp schema on 2026-10-03; applies only to this list.
+  '901611930428':
+    email: dc7038b0-24fd-4767-a5eb-f5d5f1d1ea17
+    username: 068dd0b6-7886-4775-aa84-fc0a36009a26
+    topic: a5e3ce45-2379-4f5d-945b-b2dc9db92917
+# Enable through config, e.g. channels: [support.channels.clickup:ClickUpAdapter]
+# File imports: support.channels.file:FileAdapter + SUPPORT_IMPORT_PATH in .env
+models:
+  triage: openai/gpt-4.1-mini
+  specialist: openai/gpt-4.1-mini
+  strong: openai/gpt-4.1
+  fact_checker: openai/gpt-4.1-mini
+limits:
+  max_turns: 6
+  max_tool_calls: 8
+  model_timeout_seconds: 45
+  max_input_chars: 12000
+  max_tickets_per_ingest: 100
+  max_daily_spend_usd: 5.0
+thresholds:
+  triage: 0.8
+  auto: 0.95
+  cluster_similarity: 0.65
+  min_delivery_samples: 5
+  min_gameplay_baseline: 20
+auto_resolve_safe_drafts: true
+priority:
+  paying: 35
+  power_user: 30
+  streak_scale: 0.02
+  age_hour: 1
+  max_age: 48
+  purchase: 15
+  urgency: 10
+  negative_sentiment: 5
+  cluster_member: 2
+  safety: 1000
+vip_goodwill_restore: false
+# Populate only from verified policy. No prices or ban lengths are invented.
+severity_bands: {}
+# Optional fallback prices per million tokens, with source and checked_at.
+# Missing provider cost AND missing configured price = cost unknown, never $0.
+prices: {}

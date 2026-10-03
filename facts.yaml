@@ -1,0 +1,14 @@
+facts:
+- id: messaging-review-guidance
+  category: dm_safety
+  topic: messaging_review_range
+  status: verified
+  source: 'User guidance in this chat on 2026-10-03: usually 7–30 day messaging bans
+    based on severity; no formal policy yet'
+  checked_at: '2026-10-03T12:32:14.920119+00:00'
+  answers: {}
+  values:
+    formal_severity_policy: false
+    human_review_required: true
+    max_days: 30
+    min_days: 7

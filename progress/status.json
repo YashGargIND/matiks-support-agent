@@ -1,0 +1,126 @@
+{
+  "project": "Matiks Support Agent",
+  "updated_at": "2026-10-03T12:52:15.445739+00:00",
+  "summary": "Ready for human testing of the first four demo flows. Implementation pauses at this checkpoint; live evidence gaps remain explicit.",
+  "counts": {
+    "real_reports": 280,
+    "in_app": 100,
+    "clickup": 114,
+    "email": 66,
+    "synthetic_outbox_entries": 4,
+    "real_model_calls": 0
+  },
+  "safety": {
+    "mode": "dry_run",
+    "external_dispatch": false,
+    "database_access": "read_only",
+    "real_model_input_requires_human_pii_review": true
+  },
+  "flows": [
+    {
+      "id": "dm-safety",
+      "priority": 1,
+      "label": "DM safety",
+      "demo": "passed",
+      "live": "partial",
+      "detail": "In-app report import works. Fixed existing moderation conversation read is implemented; admin session token is pending. Critical reports immediately escalate without model judgment."
+    },
+    {
+      "id": "merch-reply",
+      "priority": 2,
+      "label": "Merch reply",
+      "demo": "passed",
+      "live": "partial",
+      "detail": "Computed synthetic delivery median and p90 passed checks. Live orders are readable, but completed-status delivery semantics remain unverified."
+    },
+    {
+      "id": "streak-restore",
+      "priority": 3,
+      "label": "Streak restoration",
+      "demo": "passed",
+      "live": "partial",
+      "detail": "Free restoration proposal, incomplete-evidence escalation, and fictional paid option passed synthetic checks. Live disputed-day proof and paid pricing remain incomplete."
+    },
+    {
+      "id": "feature-request",
+      "priority": 4,
+      "label": "Feature request",
+      "demo": "passed",
+      "live": "partial",
+      "detail": "Suggestions are recorded and acknowledged without release promises. Product owner routing and demand reporting remain pending."
+    },
+    {
+      "id": "bug-investigation",
+      "priority": 5,
+      "label": "Bug investigation",
+      "demo": "deferred",
+      "live": "deferred",
+      "detail": "Further work waits for the first four live flows. Read-only source context exists; root cause and fixes are not confirmed."
+    },
+    {
+      "id": "cheating-report",
+      "priority": 6,
+      "label": "Cheating report",
+      "demo": "deferred",
+      "live": "deferred",
+      "detail": "Further work waits for the first four flows. Existing synthetic anomaly checks do not establish a live investigation."
+    }
+  ],
+  "verification": [
+    {
+      "label": "Backend regression suite",
+      "status": "passed",
+      "detail": "124 tests passed; formatting and lint checks passed."
+    },
+    {
+      "label": "First-four demo gate",
+      "status": "passed",
+      "detail": "Synthetic API and browser tests passed. These are not a real-ticket accuracy evaluation."
+    },
+    {
+      "label": "Frontend",
+      "status": "passed",
+      "detail": "Build and browser checks passed for first four scenarios, critical safety, read pages, priority preview and saved views."
+    },
+    {
+      "label": "Live synthetic SDK check",
+      "status": "passed",
+      "detail": "Two model calls and one local tool invocation; provider-reported cost $0.000174. No real ticket text."
+    },
+    {
+      "label": "Approval separation",
+      "status": "passed",
+      "detail": "Internal approval leaves reply review pending. All current outbox entries are synthetic and local-only."
+    }
+  ],
+  "blockers": [
+    "Admin moderation session token is not present yet.",
+    "No formal severity policy; human reports usual 7–30 day messaging bans, subject to review.",
+    "Paid streak pricing and completed-order delivery semantics are unverified.",
+    "Real evaluation labels, manual timing comparison and final demo recording remain pending."
+  ],
+  "repository": {
+    "url": "https://github.com/YashGargIND/matiks-support-agent",
+    "visibility": "private",
+    "status": "created_awaiting_checkpoint_push",
+    "owner_access": "automatic",
+    "teammate_invites": "awaiting_usernames"
+  },
+  "history": [
+    {
+      "at": "2026-10-03T12:48:03.609909+00:00",
+      "text": "First-four synthetic flow gate passed; live queue reached 280 reports across three sources. Separate Site and GitHub agents are working in parallel."
+    },
+    {
+      "at": "2026-10-03T12:52:15.445739+00:00",
+      "text": "Reached human-testing checkpoint: 124 tests passed, private GitHub repo created, and implementation is pausing after the tested checkpoint is pushed."
+    }
+  ],
+  "next_steps": [
+    "Human testing: create and investigate each of the first four labelled demo examples.",
+    "Verify that reply review and internal action review remain separate and local-only.",
+    "Add the moderation admin session token and share teammate GitHub usernames when ready.",
+    "Continue live evidence and product owner routing after feedback; bug and cheating work remain deferred."
+  ],
+  "state": "human_testing"
+}

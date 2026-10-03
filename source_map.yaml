@@ -1,0 +1,65 @@
+verified_against: local_source_only
+live_schema_verified: false
+repo: /Users/yashgarg/code/matiks-monorepo
+# Projections are deliberately minimal. Never select password, tokens, payment
+# method/customer details, raw provider data, reward addresses or real names.
+collections:
+  auth:
+    name: userAuth
+    identifier_fields: [email, phoneNumber.number]
+    id_field: _id
+    projection: [_id, signupMethod, status, accountStatus, createdAt]
+    evidence: services/main-server/models/userAuthDocument.go:11
+  profiles:
+    name: userProfiles
+    user_field: userId
+    handle_field: username
+    projection: [userId, username, timezone]
+    evidence: services/main-server/models/userProfileDocument.go:12
+  streak_state:
+    name: userStreaksNew
+    user_field: userId
+    projection: [userId, currentStreak, currentStreakWShieldDays, currentStreakStatus, longestStreak, lastPlayedDate, effectiveStreakDate, shieldDaysSincePlay, streakFreezers, autoApplyShield, timezone, updatedAt]
+    evidence: services/main-server/internal/domain/userStreakV2/user-streak-application/entity/entity.go:17
+  streak_history:
+    name: userStreaks
+    user_field: _id
+    history_field: streakHistoryObj
+    projection: [_id, streakHistoryObj.date, streakHistoryObj.isShieldUsed]
+    evidence: services/main-server/internal/domain/userStreakV2/user-streak-application/dao/impl/history.go:18
+  shields:
+    name: streakShieldTransactions
+    user_field: userId
+    projection: [userId, quantity, transactionType, redeemedOn, runKey, reason, createdAt, updatedAt]
+    evidence: services/main-server/internal/domain/userStreakV2/user-streak-application/constants/constants.go:8
+  activities:
+    name: userDailyActivity
+    user_field: userId
+    projection: [userId, date, dateString, totalDuration, activityBreakdown]
+    evidence: services/main-server/models/user.go:301
+    caveat: Activity duration alone does not prove qualifying streak play.
+  rewards:
+    name: streakRewards
+    user_field: userId
+    projection: [_id, userId, milestone, rewardType, reworksOrderId, reworksOrderStatus, claimedAt, createdAt, completedAt, cancelledAt, igpConfirmedAt]
+    evidence: services/main-server/models/streakReward.go:33
+    caveat: Cake row creation can precede delivery-slot confirmation; do not treat it as an order.
+  payments:
+    name: payments
+    user_field: user_id
+    projection: [_id, user_id, product_type, product_kind, store_product_id, amount_minor, currency, payment_status, environment, occurred_at, created_at]
+    evidence: services/payment-service/internal/domain/payment.go:100
+    caveat: Payment statuses include charge attempts and reversals. A subscription/trial is not proof of payment.
+  inapp_reports:
+    name: userReports
+    user_field: reporterId
+    date_field: reportedAt
+    projection: [_id, reporterId, reportedUserId, reportedAt, reasonKeys, additionalComments, status]
+    evidence: services/main-server/models/reportAndBlockUser.go:67
+    caveat: This is a user-moderation report collection, not confirmed as the generic support-form collection.
+logs:
+  status: unverified_live_structure
+  possible_resource: k8s_container
+  source_marker: labels.gcp_ingest
+  evidence: packages/logger/zlog/gcp.go:12
+  caveat: Source defines an INFO/DEBUG exclusion marker. An empty result never proves that no error occurred or that logs are complete.

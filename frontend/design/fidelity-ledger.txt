@@ -1,0 +1,24 @@
+References: inbox-concept.png and pipeline-concept.png were generated and inspected before implementation. The supplied design brief, plan.txt, actual Matiks brand assets and API evidence are authoritative when a concept differs.
+
+1 Brand: actual Matiks SVG and local Nunito Sans 400/600/700. Lime #B1FA63 comes from matiks-client. Light #F7F7F7 canvas/white panels intentionally adapt the native dark library. No screenshot forms part of the UI.
+2 Contrast: foreground #171717, muted #646464, border #E5E5E5. Primary contrast 14.28:1, muted 5.92:1 and green captions 4.55:1. Focus indicators and reduced motion supported.
+3 Type/spacing: 24px page headings, 20px sections, 14px body, 12px metadata and 4px spacing grid. Thin stats, quiet borders, restrained controls. Concept headline sizes corrected to brief.
+4 Inbox: 196px desktop sidebar, 72px top bar, independently scrolling queue/panel and fixed review footer. Source-backed summaries, honest cohorts, unknown paying status and availability notices replace invented concept data. Selected row retains lime edge.
+5 Pipeline: four intake steps, nine specialist branches, selected-step explanation and four review/outbox steps. API counts only; Other is explicit fallback. Invented concept avatar/counts removed. Steps and Settings links work.
+6 Icons/privacy: lucide controls and actual logo; no fabricated avatars. DM excerpts remain collapsed and require a second reveal.
+7 Responsive: live Inbox at 1280x720, 768x1024 and 640x900. Tablet review overlay, narrow full-width panel and visible Safe mode. Settings/Insights at 640x900 have content width equal to viewport. Temporary overrides reset.
+8 Interactions: create-only synthetic reports then explicit investigation; initial four demos and critical escalation checked. Fresh DM e07191c56cadbac182f8bcbd used explicitly fictional 7–30 day fixture. Action/reply approvals verified separately and local-only. Action approval preserves reply review; UI now stays on that report. Sidebar collapse/expand, independent saved-view scrolling, J/K, density, category/VIP filters, provenance, global report/problem search, source navigation and failure recovery checked.
+9 Settings/activity: locked safety, read-only access and disabled model calls verified. Priority preview saves nothing. In-app read-only sync imported 100 real reports locally, without investigating them from UI. Saved VIP human review using actual cohort=vip/status=escalated filters. Drafts pin original version for conflict checks. Full Settings PATCH save and knowledge mutation were not exercised by UI QA.
+10 Honesty: baseline/time savings/daily cost trends/unverified owners/root causes remain unknown. Metrics say Recorded resolution time, Resolved automatically and Reply review recorded instead of asserting model assistance. Synthetic fixtures excluded from real metrics. No owner/confidence/cohort/policy/root cause invented.
+
+Build: npm run build passes. Fresh browser tab error/warning logs empty after final page/search checks. Generated openapi-fetch operations cover reads, creation, priority preview and core ticket edits/investigation/approvals. Remaining dynamic registry/config/knowledge mutations use the shared request helper.
+
+Dependencies/limits:
+- Current API registry disables runtime agent editing, several source tests/sync controls and sample tests with clear reasons.
+- Bulk approval disabled while guarded shared_reply is unavailable; individual review works.
+- Parent owns admin conversation credentials; missing access does not imply live chat verification/decryption.
+- CSV button exercised, but IAB provided no completed download event; file download unverified.
+- Auto-review rejected Discard changes on the older Settings draft. Preserved that tab and continued separately without bypassing rejection.
+- Metrics/config versions may advance through parent work. Screenshots describe capture time.
+
+Final proof: inbox-real-final.jpg, safety-review.jpg, reply-approval.jpg, critical-safety-final.jpg, problems-final.jpg, problem-detail-final.jpg, insights-final.jpg, activity-final.jpg, pipeline-final.jpg, settings-safety-final.jpg, global-search.jpg, inbox-tablet.jpg, inbox-narrow.jpg, settings-narrow.jpg, insights-narrow.jpg. Older unsuffixed shots are historical; safety-review replaces obsolete 3-day fixture.

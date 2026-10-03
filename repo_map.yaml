@@ -1,0 +1,18 @@
+# Navigation hints derived from local source, not deployed/runtime evidence.
+# Paths must be relative, tracked source directories. No model controls paths.
+modules:
+  streak:
+    terms: [streak, shield, freezer, स्ट्रीक, शील्ड]
+    paths: [services/main-server/internal/domain/userStreakV2, services/main-server/internal/domain/userStreakRestore]
+  daily_challenge:
+    terms: [daily challenge, daily puzzle, dailychallenge]
+    paths: [services/main-server/internal/domain/dailyChallengeV2]
+  purchases:
+    terms: [purchase, payment, refund, subscription]
+    paths: [services/payment-service/internal]
+  gameplay:
+    terms: [duel, multiplayer, matchmaking, game, gameplay, score]
+    paths: [services/game-server/internal]
+  app:
+    terms: []
+    paths: [services/main-server/internal/domain]
