@@ -1,6 +1,6 @@
 {
   "project": "Matiks Support Agent",
-  "updated_at": "2026-10-03T12:52:15.445739+00:00",
+  "updated_at": "2026-10-03T12:56:32.345224+00:00",
   "summary": "Ready for human testing of the first four demo flows. Implementation pauses at this checkpoint; live evidence gaps remain explicit.",
   "counts": {
     "real_reports": 280,
@@ -91,6 +91,11 @@
       "label": "Approval separation",
       "status": "passed",
       "detail": "Internal approval leaves reply review pending. All current outbox entries are synthetic and local-only."
+    },
+    {
+      "label": "GitHub automated checks",
+      "status": "passed",
+      "detail": "Python checks and frontend build passed for checkpoint 5bf9f21."
     }
   ],
   "blockers": [
@@ -102,9 +107,12 @@
   "repository": {
     "url": "https://github.com/YashGargIND/matiks-support-agent",
     "visibility": "private",
-    "status": "created_awaiting_checkpoint_push",
+    "status": "pushed",
     "owner_access": "automatic",
-    "teammate_invites": "awaiting_usernames"
+    "teammate_invites": "awaiting_usernames",
+    "checkpoint_commit": "5bf9f21c2390a0c4432a0a282a61c7d75b653268",
+    "ci_status": "success",
+    "ci_url": "https://github.com/YashGargIND/matiks-support-agent/actions/runs/37124399459"
   },
   "history": [
     {
@@ -114,6 +122,10 @@
     {
       "at": "2026-10-03T12:52:15.445739+00:00",
       "text": "Reached human-testing checkpoint: 124 tests passed, private GitHub repo created, and implementation is pausing after the tested checkpoint is pushed."
+    },
+    {
+      "at": "2026-10-03T12:56:32.345224+00:00",
+      "text": "Tested checkpoint pushed to the private repository. Local 124 tests, frontend build and GitHub automated checks passed. Human testing can begin."
     }
   ],
   "next_steps": [
