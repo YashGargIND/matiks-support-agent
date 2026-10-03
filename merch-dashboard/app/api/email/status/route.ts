@@ -1,0 +1,1 @@
+import {emailStatus} from "../../../../lib/email";import {assertLocal,errorResponse} from "../../../../lib/core";export async function GET(request:Request){try{assertLocal(request);return Response.json(await emailStatus())}catch(error){return errorResponse(error)}}

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dotenv import dotenv_values
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=Path(__file__).resolve().parent).decode().strip())
 
 
 def main() -> int:
@@ -19,7 +19,7 @@ def main() -> int:
         .split("\0")
     )
     secrets: dict[bytes, set[str]] = {}
-    for env_file in ROOT.glob(".env*"):
+    for env_file in [*ROOT.glob(".env*"), *ROOT.glob("*/.env*")]:
         if env_file.name == ".env.example" or not env_file.is_file():
             continue
         for key, value in dotenv_values(env_file).items():
