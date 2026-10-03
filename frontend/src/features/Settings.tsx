@@ -2,7 +2,13 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { LockKeyhole, CheckCircle2, AlertCircle, History } from "lucide-react";
+import {
+  LockKeyhole,
+  CheckCircle2,
+  AlertCircle,
+  History,
+  LoaderCircle,
+} from "lucide-react";
 import {
   loadSettings,
   previewPriority,
@@ -10,6 +16,7 @@ import {
   patch,
   post,
   parseObject,
+  ApiError,
   type SettingsData,
   type Registry,
   type RegistryField,
@@ -56,6 +63,14 @@ export default function Settings() {
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [test, setTest] = useState<unknown>(null);
+  const [check, setCheck] = useState<{
+    path: string;
+    body: unknown;
+    label: string;
+  } | null>(null);
+  const [syncResults, setSyncResults] = useState<
+    Record<string, { result?: unknown; error?: string }>
+  >({});
   const [sample, setSample] = useState("");
   const [agentTest, setAgentTest] = useState<string | null>(null);
   const [priorityPreview, setPriorityPreview] = useState<QueuePreview | null>(
@@ -143,19 +158,45 @@ export default function Settings() {
       setBusy(false);
     }
   };
-  async function runTest(path: string, body: unknown = {}) {
+  async function runTest(path: string, body: unknown = {}, label = "Check") {
+    const channel = path.match(/^\/ui\/channels\/([^/]+)\/sync$/)?.[1];
+    setCheck({ path, body, label });
     setBusy(true);
     try {
       const result = await post(path, body);
       setTest(result);
+      if (channel) {
+        setSyncResults((previous) => ({ ...previous, [channel]: { result } }));
+        toast.success(
+          `${label} completed. Reports are available in the Inbox.`,
+        );
+      }
       if (path.endsWith("/restore")) {
         setConfig(null);
         setBaseline(null);
         await client.invalidateQueries({ queryKey: ["settings"] });
       }
-      await client.invalidateQueries({ queryKey: ["overview"] });
+      await Promise.all(
+        [
+          "overview",
+          "activity",
+          "settings",
+          "insights",
+          "problems",
+          "pipeline",
+          "ticket",
+        ].map((key) => client.invalidateQueries({ queryKey: [key] })),
+      );
     } catch (e) {
-      setTest({ error: (e as Error).message });
+      const error = (e as Error).message;
+      const help = channel
+        ? syncErrorHelp(e instanceof ApiError ? e.status : 0)
+        : null;
+      setTest({ error, ...(help ? { help } : {}) });
+      if (channel) {
+        setSyncResults((previous) => ({ ...previous, [channel]: { error } }));
+        toast.error(`${label} failed. Review the connection details.`);
+      }
     } finally {
       setBusy(false);
     }
@@ -390,15 +431,28 @@ export default function Settings() {
                 Enable an available adapter to add its reports to the shared
                 queue.
               </p>
+              {dirty ? (
+                <p className="muted">
+                  Sync uses saved channel settings. Your unsaved changes stay on
+                  this page.
+                </p>
+              ) : null}
               {registries.channels.map((c) => (
                 <section className="settings-group" key={c.id}>
                   <div className="section-heading">
-                    <h3>{c.name}</h3>
+                    <h3>{c.id === "clickup" ? "ClickUp" : c.name}</h3>
                     <Badge variant="secondary">
                       {c.status?.replaceAll("_", " ") || "Not configured"}
                     </Badge>
                   </div>
                   <p className="muted">{c.reason}</p>
+                  {c.id === "clickup" ? (
+                    <p className="muted">
+                      Each sync reads up to 100 reports using saved channel
+                      settings. Importing adds reports to the local queue;
+                      investigation and reply review are separate steps.
+                    </p>
+                  ) : null}
                   <RegistryForm
                     registry={c}
                     values={parseObject(parseObject(config.channels)[c.id])}
@@ -409,14 +463,45 @@ export default function Settings() {
                   <Button
                     variant="outline"
                     disabled={busy || c.available === false}
+                    aria-label={`Sync ${c.id === "clickup" ? "ClickUp" : c.name} reports`}
                     onClick={() =>
-                      void runTest(`/ui/channels/${c.id}/sync`, {
-                        reviewer: reviewer || "Local reviewer",
-                      })
+                      void runTest(
+                        `/ui/channels/${c.id}/sync`,
+                        {
+                          reviewer: reviewer || "Local reviewer",
+                        },
+                        `${c.id === "clickup" ? "ClickUp" : c.name} sync`,
+                      )
                     }
                   >
-                    Sync reports
+                    {busy && check?.path === `/ui/channels/${c.id}/sync` ? (
+                      <>
+                        <LoaderCircle
+                          className="animate-spin"
+                          aria-hidden="true"
+                        />{" "}
+                        Syncing reports…
+                      </>
+                    ) : parseObject(syncResults[c.id]?.result).has_more ===
+                      true ? (
+                      "Sync next batch"
+                    ) : (
+                      "Sync reports"
+                    )}
                   </Button>
+                  {syncResults[c.id] ? (
+                    <p className="muted" role="status">
+                      {syncResults[c.id].error
+                        ? `Sync failed: ${syncResults[c.id].error}`
+                        : `Last sync: fetched ${String(parseObject(syncResults[c.id].result).fetched ?? "unknown")} reports; added ${String(parseObject(syncResults[c.id].result).inserted ?? "unknown")} new reports.`}
+                    </p>
+                  ) : null}
+                  {parseObject(syncResults[c.id]?.result).has_more === true ? (
+                    <p className="muted">
+                      More reports may remain. Sync the next batch to continue
+                      importing.
+                    </p>
+                  ) : null}
                 </section>
               ))}
               <p>
@@ -623,7 +708,11 @@ export default function Settings() {
       </Dialog>
       <Dialog open={test !== null} onOpenChange={(v) => !v && setTest(null)}>
         <DialogContent>
-          <DialogTitle>Check result</DialogTitle>
+          <DialogTitle>
+            {check?.label === "Check" || !check
+              ? "Check result"
+              : `${check.label} result`}
+          </DialogTitle>
           <DialogDescription>
             Connection checks and tests use read-only access. No external action
             is performed.
@@ -639,15 +728,51 @@ export default function Settings() {
                 Read-only source access. No messages or moderation actions were
                 performed.
               </p>
+              {check?.path.startsWith("/ui/channels/") ? (
+                <p className="muted">
+                  Inbox counts, Activity and related views refresh
+                  automatically. Existing reports are kept once.
+                </p>
+              ) : null}
+              {parseObject(test).has_more === true ? (
+                <p>
+                  More reports may remain. Sync the next batch to continue; each
+                  ClickUp batch reads up to 100 reports.
+                </p>
+              ) : null}
             </>
           ) : typeof parseObject(test).error === "string" ? (
-            <p>{String(parseObject(test).error)}</p>
+            <div role="alert">
+              <p>{String(parseObject(test).error)}</p>
+              {parseObject(test).help ? (
+                <p className="muted">{String(parseObject(test).help)}</p>
+              ) : null}
+            </div>
           ) : (
             <p>Check completed. Review the recorded result below.</p>
           )}
           <Technical title="Recorded check details">
             <pre>{JSON.stringify(test, null, 2)}</pre>
           </Technical>
+          {parseObject(test).error &&
+          check?.path.startsWith("/ui/channels/") ? (
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => void runTest(check.path, check.body, check.label)}
+            >
+              Try sync again
+            </Button>
+          ) : null}
+          {parseObject(test).has_more === true &&
+          check?.path.startsWith("/ui/channels/") ? (
+            <Button
+              disabled={busy}
+              onClick={() => void runTest(check.path, check.body, check.label)}
+            >
+              Sync next batch
+            </Button>
+          ) : null}
           <Button variant="outline" onClick={() => setTest(null)}>
             Close result
           </Button>
@@ -686,6 +811,21 @@ export default function Settings() {
       </Dialog>
     </main>
   );
+}
+function syncErrorHelp(status: number) {
+  if (status === 401 || status === 403)
+    return "Check the channel credentials and list permissions in your environment, then retry. No new reports were imported.";
+  if (status === 404)
+    return "This support service does not provide the channel sync route. Restart the updated API, then retry.";
+  if (status === 429)
+    return "ClickUp has rate-limited this connection. Wait before trying sync again.";
+  if (status === 503)
+    return "The channel is disabled or required environment credentials are missing. Check the saved channel settings and environment, then retry.";
+  if (status === 502)
+    return "The upstream source could not be reached or denied access. Check the connection, API token and list permissions, then retry.";
+  if (status === 0)
+    return "Check that the local support service is running, then retry.";
+  return "Check the saved channel settings and connection details above, then retry. Your unsaved configuration has been kept.";
 }
 function RegistryForm({
   registry,

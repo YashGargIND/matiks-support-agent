@@ -1,7 +1,7 @@
 # Matiks support workbench
 
 Local **dry-run** support console for the [Matiks AI Hackathon](https://claude.ai/code/artifact/b57440dd-e116-4f35-a751-b8fd54b27a05).
-The workbench imports tickets, applies safety rules, investigates through bounded read-only tools, checks drafts, ranks the queue, and records local approvals. It never sends a message or changes Matiks systems. A local sample of **280 real reports** was captured read-only on 2026-10-03: 114 ClickUp submissions, 66 support emails, and 100 in-app communication reports. These unlabelled snapshots, credentials, local databases and screenshots containing live reports **are not included in this repository**.
+The workbench imports tickets, applies safety rules, investigates through bounded read-only tools, checks drafts, ranks the queue, and records local approvals. It never sends a message or changes Matiks systems. A local sample of **679 real reports** was captured read-only on 2026-10-03: 413 ClickUp submissions, 66 support emails, and 200 in-app communication reports. These unlabelled snapshots, credentials, local databases and screenshots containing live reports **are not included in this repository**.
 
 ## Run on your machine
 
@@ -71,6 +71,8 @@ channels:
 ```
 
 ClickUp uses only the list-tasks GET endpoint. The verified `feedbacks` list ID is `901611930428`; its email/username/topic field IDs are mapped in `config.yaml`. Creator identity is not treated as the reporting user. Other lists require their own verified field map. The adapter requests oldest-first ordering, fails closed if the response order differs, and checkpoints same-timestamp pages without skipping reports. It currently requires the configured 100-task ingestion cap. The connected ClickUp app's 100-call daily allowance was exhausted during discovery on 2026-10-03; continuous polling needs your own scoped API configuration or fresh exports.
+
+To import from the dashboard, configure `CLICKUP_API_TOKEN` and `CLICKUP_LIST_ID` in your local `.env`, restart the support server, and open **Settings → Channels → ClickUp → Sync reports**. Enter your name for the local audit record. Each sync reads up to 100 **open** reports, starting within the initial seven-day window and then continuing from the saved checkpoint. Repeat while the dashboard indicates more reports may remain. The result shows fetched and newly added counts; duplicates are skipped. Sync only imports reports for review and does not investigate them, send replies or update ClickUp.
 
 Email uses TLS IMAP, Google OAuth or an app password, `readonly=True` (EXAMINE), UID checkpoints and BODY.PEEK. It reads only the configured folder, applies a bounded initial lookback and exact support-addressed To/Cc checks, caps each fetch and does not change unread flags. Stable Gmail message identifiers prevent duplication with captured Gmail snapshots. OAuth access tokens remain in memory; the existing full-mail grant is used exclusively for these read operations.
 
@@ -163,7 +165,9 @@ Tests cover every action type's dry-run boundary, stale/missing evidence, inject
 
 The initial shared checkpoint passed **124 Python tests**, Ruff checks and the frontend production build. Synthetic browser checks covered the first four demo flows. Live-source and human acceptance gaps remain listed below and in the progress checkpoint.
 
-The [evaluation guide](evals/README.md) explains reviewed labels and isolated snapshot runs. The owner's ignored `data/label_candidates.json` holds an earlier 80-report subset with null outcome labels; the newer local queue has 280 real reports. Neither proves labelled accuracy until reviewed. The checked-in smoke dataset is synthetic and clearly reported as such.
+The ClickUp dashboard-sync checkpoint passed **134 Python tests**, Ruff and the frontend build. A browser check confirmed the enabled sync control and fetched/added feedback; live read-only batches and a final repeat verified checkpoint continuation and duplicate skipping.
+
+The [evaluation guide](evals/README.md) explains reviewed labels and isolated snapshot runs. The owner's ignored `data/label_candidates.json` holds an earlier 80-report subset with null outcome labels; the newer local queue has 679 real reports. Neither proves labelled accuracy until reviewed. The checked-in smoke dataset is synthetic and clearly reported as such.
 
 ## Remaining deliverables
 

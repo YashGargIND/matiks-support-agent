@@ -1,11 +1,11 @@
 {
   "project": "Matiks Support Agent",
-  "updated_at": "2026-10-03T12:56:32.345224+00:00",
-  "summary": "Ready for human testing of the first four demo flows. Implementation pauses at this checkpoint; live evidence gaps remain explicit.",
+  "updated_at": "2026-10-03T13:20:34.036086+00:00",
+  "summary": "ClickUp dashboard sync fixed and verified in the browser against the live read-only source. Ready for human testing; broader implementation stays paused.",
   "counts": {
-    "real_reports": 280,
-    "in_app": 100,
-    "clickup": 114,
+    "real_reports": 679,
+    "in_app": 200,
+    "clickup": 413,
     "email": 66,
     "synthetic_outbox_entries": 4,
     "real_model_calls": 0
@@ -70,7 +70,7 @@
     {
       "label": "Backend regression suite",
       "status": "passed",
-      "detail": "124 tests passed; formatting and lint checks passed."
+      "detail": "134 tests passed; formatting and lint checks passed."
     },
     {
       "label": "First-four demo gate",
@@ -80,7 +80,7 @@
     {
       "label": "Frontend",
       "status": "passed",
-      "detail": "Build and browser checks passed for first four scenarios, critical safety, read pages, priority preview and saved views."
+      "detail": "Build passed. Parent browser check confirmed the enabled ClickUp sync control and fetched/new-report result, alongside the earlier first-four flow checks."
     },
     {
       "label": "Live synthetic SDK check",
@@ -96,11 +96,16 @@
       "label": "GitHub automated checks",
       "status": "passed",
       "detail": "Python checks and frontend build passed for checkpoint 5bf9f21."
+    },
+    {
+      "label": "ClickUp dashboard sync",
+      "status": "passed",
+      "detail": "Missing dashboard route connected and configured control enabled. Live read-only import added 299 reports; repeated API and browser sync added zero duplicates. Batches are capped at 100 and explain when to sync again."
     }
   ],
   "blockers": [
     "Admin moderation session token is not present yet.",
-    "No formal severity policy; human reports usual 7–30 day messaging bans, subject to review.",
+    "No formal severity policy; human reports usual 7\u201330 day messaging bans, subject to review.",
     "Paid streak pricing and completed-order delivery semantics are unverified.",
     "Real evaluation labels, manual timing comparison and final demo recording remain pending."
   ],
@@ -126,9 +131,18 @@
     {
       "at": "2026-10-03T12:56:32.345224+00:00",
       "text": "Tested checkpoint pushed to the private repository. Local 124 tests, frontend build and GitHub automated checks passed. Human testing can begin."
+    },
+    {
+      "at": "2026-10-03T13:15:26.505611+00:00",
+      "text": "Human testing found a disconnected ClickUp sync control. Backend fix passed 134 tests and imported 299 reports; the live queue now has 679 reports. Final UI feedback check is in progress."
+    },
+    {
+      "at": "2026-10-03T13:20:34.036086+00:00",
+      "text": "ClickUp sync repair passed the final dashboard browser check and frontend build. All 134 backend tests pass. Ready for human testing and repository checkpoint publication."
     }
   ],
   "next_steps": [
+    "Human testing: submit a new open ClickUp report, sync from Settings > Channels, and confirm it appears once in the Inbox.",
     "Human testing: create and investigate each of the first four labelled demo examples.",
     "Verify that reply review and internal action review remain separate and local-only.",
     "Add the moderation admin session token and share teammate GitHub usernames when ready.",

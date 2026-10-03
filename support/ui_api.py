@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 from collections import Counter
 from datetime import UTC, date, datetime
 from statistics import mean
 from typing import Literal
 from uuid import uuid4
 
+import httpx
 import yaml
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -499,6 +502,8 @@ def settings():
             "reason": "Fetch pending communication reports from the last seven days. Report creation and moderation stay in Matiks.",
         }
     )
+    clickup = next(item for item in registries["channels"] if item["id"] == "clickup")
+    clickup["available"], clickup["reason"] = clickup_sync_availability(cfg)
     return {
         "version": version,
         "config": cfg,
@@ -515,6 +520,57 @@ class SyncResponse(BaseModel):
     fetched: int
     mode: Literal["dry_run"] = "dry_run"
     external_dispatch: Literal[False] = False
+    has_more: bool = False
+
+
+def clickup_sync_availability(cfg: dict) -> tuple[bool, str]:
+    if not cfg["channels"]["clickup"]["enabled"]:
+        return False, "ClickUp ingestion is disabled in the current configuration."
+    if not os.getenv("CLICKUP_API_TOKEN") or not re.fullmatch(
+        r"\d+", os.getenv("CLICKUP_LIST_ID", "")
+    ):
+        return (
+            False,
+            "Add CLICKUP_API_TOKEN and a numeric CLICKUP_LIST_ID to .env, then restart the support server.",
+        )
+    return (
+        True,
+        "Import up to 100 open reports per sync, oldest first. Repeat while more reports remain. ClickUp is read-only.",
+    )
+
+
+@router.post("/channels/clickup/sync", response_model=SyncResponse)
+def sync_clickup_reports(request: Reviewed):
+    from support.channels.clickup import ClickUpAdapter
+
+    _, cfg = ConfigService().current()
+    available, reason = clickup_sync_availability(cfg)
+    if not available:
+        raise HTTPException(503, reason)
+    store = Store()
+    try:
+        result = ingest(store, ClickUpAdapter())
+    except Exception as error:
+        store.event(
+            None,
+            "channel_sync_failed",
+            {
+                "channel": "clickup",
+                "reviewer": request.reviewer,
+                "error_type": type(error).__name__,
+            },
+        )
+        message = "ClickUp reports could not be read. Check the connection and try again."
+        status = 502
+        if isinstance(error, httpx.HTTPStatusError):
+            if error.response.status_code in {401, 403, 404}:
+                message = "ClickUp could not authorize access to this list. Check CLICKUP_API_TOKEN and CLICKUP_LIST_ID, then restart the support server."
+            elif error.response.status_code == 429:
+                status = 429
+                message = "ClickUp is rate limiting requests. Wait a minute and try syncing again."
+        raise HTTPException(status, message) from None
+    store.event(None, "channel_sync_review", {"channel": "clickup", "reviewer": request.reviewer})
+    return {**result, "has_more": result["fetched"] == 100}
 
 
 @router.post("/channels/in_app/sync", response_model=SyncResponse)

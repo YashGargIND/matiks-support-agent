@@ -159,6 +159,23 @@ export interface paths {
         patch: operations["edit_settings_ui_settings_patch"];
         trace?: never;
     };
+    "/ui/channels/clickup/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sync Clickup Reports */
+        post: operations["sync_clickup_reports_ui_channels_clickup_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ui/channels/in_app/sync": {
         parameters: {
             query?: never;
@@ -924,6 +941,11 @@ export interface components {
              * @constant
              */
             external_dispatch: false;
+            /**
+             * Has More
+             * @default false
+             */
+            has_more: boolean;
         };
         /** Ticket */
         Ticket: {
@@ -1481,6 +1503,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SettingsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_clickup_reports_ui_channels_clickup_sync_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reviewed"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncResponse"];
                 };
             };
             /** @description Validation Error */
