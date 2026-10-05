@@ -13,3 +13,19 @@ test("manual SMTP email preserves recipient and duplicate key sends once",async(
 test("SMTP readiness verifies account without sending",async()=>{let sent=0;const status=await emailStatus(fetchMock(()=>Response.json({access_token:"test",scope:"https://mail.google.com/"})),()=>({verify:async()=>{},sendMail:async()=>{sent++;return{}}}));assert.equal(status.ready,true);assert.equal(sent,0)});
 test("SMTP rejected authentication is actionable",async()=>{const status=await emailStatus(fetchMock(()=>Response.json({access_token:"test",scope:"https://mail.google.com/"})),()=>({verify:async()=>{throw{code:"EAUTH"}},sendMail:async()=>({})}));assert.equal(status.ready,false);assert.match(status.reason,/authentication was denied/)});
 test("milestone physical reward reports match merch",()=>{assert.equal(isMerch(task("a","50-day reward claim")),true);assert.equal(isMerch(task("a","How many coins do I get as puzzle rewards?")),false)});
+
+ test("Next loopback normalization preserves real Host origin checks", () => {
+   const url = "http://localhost:8510/api/reply";
+   assertLocal(new Request(url, {headers: {Host: "127.0.0.1:8510", Origin: "http://127.0.0.1:8510"}}));
+   assertLocal(new Request(url, {headers: {Host: "localhost:8510", Origin: "http://localhost:8510"}}));
+   assertLocal(new Request(url, {headers: {Host: "[::1]:8510", Origin: "http://[::1]:8510"}}));
+   for (const headers of [
+     {Host: "127.0.0.1:8510", Origin: "http://evil.example"},
+     {Host: "127.0.0.1:8510", Origin: "http://localhost:8510"},
+     {Host: "127.0.0.1:8510", Origin: "http://127.0.0.1:8511"},
+     {Host: "evil.example:8510", Origin: "http://evil.example:8510"},
+     {Host: "127.0.0.1:8510", Origin: "null"},
+     {Host: "127.0.0.1:8511", Origin: "http://127.0.0.1:8511"},
+     {Host: "127.0.0.1:8510", Origin: "http://evil.example", "x-forwarded-host": "evil.example:8510"},
+   ]) assert.throws(() => assertLocal(new Request(url, {headers: headers as Record<string, string>})));
+ });

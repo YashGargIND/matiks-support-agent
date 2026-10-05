@@ -440,3 +440,19 @@ test("local endpoints reject foreign origins and hosts", () => {
     requireLocalRequest(new Request("https://public.example/api/config")),
   );
 });
+
+ test("Next loopback normalization preserves real Host origin checks", () => {
+   const url = "http://localhost:8510/api/reply";
+   requireLocalRequest(new Request(url, {headers: {Host: "127.0.0.1:8510", Origin: "http://127.0.0.1:8510"}}));
+   requireLocalRequest(new Request(url, {headers: {Host: "localhost:8510", Origin: "http://localhost:8510"}}));
+   requireLocalRequest(new Request(url, {headers: {Host: "[::1]:8510", Origin: "http://[::1]:8510"}}));
+   for (const headers of [
+     {Host: "127.0.0.1:8510", Origin: "http://evil.example"},
+     {Host: "127.0.0.1:8510", Origin: "http://localhost:8510"},
+     {Host: "127.0.0.1:8510", Origin: "http://127.0.0.1:8511"},
+     {Host: "evil.example:8510", Origin: "http://evil.example:8510"},
+     {Host: "127.0.0.1:8510", Origin: "null"},
+     {Host: "127.0.0.1:8511", Origin: "http://127.0.0.1:8511"},
+     {Host: "127.0.0.1:8510", Origin: "http://evil.example", "x-forwarded-host": "evil.example:8510"},
+   ]) assert.throws(() => requireLocalRequest(new Request(url, {headers: headers as Record<string, string>})));
+ });
