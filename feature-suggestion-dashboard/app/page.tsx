@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import type { Config, Ticket, Run } from "@/lib/types";
+import type { Config, Ticket, Run, Job } from "@/lib/types";
+import { jobActive, jobProgress } from "@/lib/job-view";
 function Icon({ type }: { type: "refresh" | "search" | "send" }) {
   return (
     <svg
@@ -77,6 +78,8 @@ export default function Dashboard() {
     pages: number;
   } | null>(null);
   const [run, setRun] = useState<Run | null>(null);
+  const [job, setJob] = useState<Job | null>(null);
+  const working = !!busy || jobActive(job);
   const [selected, setSelected] = useState<Ticket | null>(null);
   const dirty = JSON.stringify(config) !== savedConfig;
   async function load(force = false) {
@@ -105,6 +108,14 @@ export default function Dashboard() {
           setConfig(data.config);
           setSavedConfig(JSON.stringify(data.config));
           setCredentials(data.credentials);
+        }
+      })
+      .catch((e) => setError(e.message));
+    api<{ job: Job | null }>("/api/summaries")
+      .then(({ job }) => {
+        if (active) {
+          setJob(job);
+          if (job?.run) setRun(job.run);
         }
       })
       .catch((e) => setError(e.message));
@@ -143,22 +154,59 @@ export default function Dashboard() {
       setBusy("");
     }
   }
+  useEffect(() => {
+    if (!job || !jobActive(job)) return;
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const result = await api<{ job: Job }>(`/api/jobs/${job.id}`);
+        if (!alive) return;
+        setJob(result.job);
+        if (result.job.run) setRun(result.job.run);
+        setError("");
+        if (!jobActive(result.job)) return;
+      } catch {
+        if (!alive) return;
+        setError(
+          "Connection lost. Reconnecting to the saved summary job; no new job or send is started.",
+        );
+      }
+      if (alive) timer = setTimeout(poll, 2000);
+    };
+    timer = setTimeout(poll, 500);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [job?.id, job?.status]);
   async function summarize(send: boolean) {
-    setBusy(
-      send
-        ? "Fetching, summarizing all suggestions and sending…"
-        : "Fetching and summarizing all suggestions…",
-    );
+    setBusy("Starting summary…");
     setError("");
     setNotice("");
     try {
-      const result = await api<Run>("/api/summaries", "POST", { send });
-      setRun(result);
-      setNotice(
-        send
-          ? "Processing finished. Check each module’s delivery status below."
-          : `Preview ready. All ${result.totalTickets} suggestions covered; nothing sent.`,
+      const result = await api<{ job: Job }>("/api/summaries", "POST", {
+        send,
+      });
+      setJob(result.job);
+      if (result.job.run) setRun(result.job.run);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy("");
+    }
+  }
+  async function retry() {
+    if (!job) return;
+    setBusy("Resuming saved summary…");
+    setError("");
+    try {
+      const result = await api<{ job: Job }>(
+        `/api/jobs/${job.id}/retry`,
+        "POST",
+        {},
       );
+      setJob(result.job);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -189,7 +237,7 @@ export default function Dashboard() {
         <button
           className="outline refresh"
           onClick={() => void load(true)}
-          disabled={!!busy}
+          disabled={working}
         >
           <Icon type="refresh" />
           Refresh reports
@@ -220,7 +268,7 @@ export default function Dashboard() {
         <button
           className="primary"
           disabled={
-            !!busy ||
+            working ||
             dirty ||
             !credentials.slack ||
             !credentials.openrouter ||
@@ -238,6 +286,41 @@ export default function Dashboard() {
       </div>
       <div aria-live="polite" className="messages">
         {busy && <p className="status">{busy}</p>}
+        {job && (
+          <section className="job-progress" aria-label="Summary job progress">
+            <p
+              className={
+                job.status === "error" || job.status === "interrupted"
+                  ? "error"
+                  : "status"
+              }
+            >
+              {jobProgress(job)}
+            </p>
+            <small>
+              {job.send ? "Summary and send" : "Preview only"} · Saved job ·
+              Routing snapshot preserved
+              {job.totalBatches > 0 &&
+                ` · ${job.completedBatches}/${job.totalBatches} batches saved`}
+            </small>
+            {job.status === "summarizing" && (
+              <progress
+                aria-label="Completed summary batches"
+                max={job.totalBatches || 1}
+                value={job.completedBatches}
+              />
+            )}
+            {["error", "interrupted"].includes(job.status) && (
+              <button
+                className="outline"
+                disabled={working}
+                onClick={() => void retry()}
+              >
+                Retry saved job
+              </button>
+            )}
+          </section>
+        )}
         {error && (
           <p className="error" role="alert">
             {error}
@@ -399,7 +482,7 @@ export default function Dashboard() {
                         <button
                           className="remove"
                           aria-label={`Remove ${m.name}`}
-                          disabled={config.modules.length < 2 || !!busy}
+                          disabled={config.modules.length < 2 || working}
                           onClick={() =>
                             setConfig({
                               modules: config.modules.filter(
@@ -424,7 +507,7 @@ export default function Dashboard() {
             <div className="routing-actions">
               <button
                 className="outline"
-                disabled={!!busy || config.modules.length >= 20}
+                disabled={working || config.modules.length >= 20}
                 onClick={() =>
                   setConfig({
                     modules: [
@@ -443,7 +526,7 @@ export default function Dashboard() {
               </button>
               <button
                 className="primary"
-                disabled={!!busy || !dirty}
+                disabled={working || !dirty}
                 onClick={save}
               >
                 Save routing
@@ -456,7 +539,7 @@ export default function Dashboard() {
               <button
                 className="outline"
                 disabled={
-                  !!busy || dirty || !credentials.openrouter || !tickets.length
+                  working || dirty || !credentials.openrouter || !tickets.length
                 }
                 onClick={() => void summarize(false)}
               >
@@ -522,7 +605,7 @@ export default function Dashboard() {
                 })}
                 <button
                   className="primary"
-                  disabled={!!busy || !credentials.slack}
+                  disabled={working || !credentials.slack}
                   onClick={sendSaved}
                 >
                   Send unsent summaries

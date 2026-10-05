@@ -507,3 +507,22 @@ code {
     align-items: flex-start;
   }
 }
+
+.job-progress {
+  padding: 0 0 12px;
+}
+.job-progress small {
+  display: block;
+  color: var(--muted);
+  margin: 0 0 8px 14px;
+}
+.job-progress progress {
+  display: block;
+  width: min(100%, 540px);
+  height: 10px;
+  margin: 12px 14px;
+  accent-color: var(--lime);
+}
+.job-progress button {
+  margin: 6px 14px;
+}

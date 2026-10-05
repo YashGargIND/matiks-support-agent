@@ -189,12 +189,12 @@ test("structured OpenRouter request covers input and identical preview is cached
                 {
                   moduleId: "feed",
                   summary: "Hide unwanted posts.",
-                  ticketIds: ["a"],
+                  ticketIds: ["r1"],
                 },
                 {
                   moduleId: "other",
                   summary: "Optional sound.",
-                  ticketIds: ["b"],
+                  ticketIds: ["r2"],
                 },
               ],
             }),
@@ -257,10 +257,13 @@ test("bounded batches retain every report and complete module summaries", async 
     });
   }) as typeof fetch;
   const run = await summarize(longTickets, config, 6, fake);
-  assert.equal(calls, 2);
-  assert.equal(run.modelCalls, 2);
+  assert.equal(calls, 6);
+  assert.equal(run.modelCalls, 6);
   assert.deepEqual(run.summaries[0].ticketIds, ["a", "b", "c", "d", "e", "f"]);
-  assert.equal(run.summaries[0].summary, "Idea a\n\nIdea f");
+  assert.equal(
+    run.summaries[0].summary,
+    "Idea r1\n\nIdea r1\n\nIdea r1\n\nIdea r1\n\nIdea r1\n\nIdea r1",
+  );
 });
 function fixture(): Run {
   return {
@@ -321,7 +324,7 @@ test("summary requests run with at most three concurrent batches", async () => {
   }) as typeof fetch;
   const run = await summarize(many, config, 22, fake);
   assert.equal(peak, 3);
-  assert.equal(calls, 5);
+  assert.equal(calls, 22);
   assert.equal(run.summaries.flatMap((group) => group.ticketIds).length, 22);
 });
 test("Slack partial failure is persisted and retry skips successful module", async () => {
@@ -441,18 +444,39 @@ test("local endpoints reject foreign origins and hosts", () => {
   );
 });
 
- test("Next loopback normalization preserves real Host origin checks", () => {
-   const url = "http://localhost:8510/api/reply";
-   requireLocalRequest(new Request(url, {headers: {Host: "127.0.0.1:8510", Origin: "http://127.0.0.1:8510"}}));
-   requireLocalRequest(new Request(url, {headers: {Host: "localhost:8510", Origin: "http://localhost:8510"}}));
-   requireLocalRequest(new Request(url, {headers: {Host: "[::1]:8510", Origin: "http://[::1]:8510"}}));
-   for (const headers of [
-     {Host: "127.0.0.1:8510", Origin: "http://evil.example"},
-     {Host: "127.0.0.1:8510", Origin: "http://localhost:8510"},
-     {Host: "127.0.0.1:8510", Origin: "http://127.0.0.1:8511"},
-     {Host: "evil.example:8510", Origin: "http://evil.example:8510"},
-     {Host: "127.0.0.1:8510", Origin: "null"},
-     {Host: "127.0.0.1:8511", Origin: "http://127.0.0.1:8511"},
-     {Host: "127.0.0.1:8510", Origin: "http://evil.example", "x-forwarded-host": "evil.example:8510"},
-   ]) assert.throws(() => requireLocalRequest(new Request(url, {headers: headers as Record<string, string>})));
- });
+test("Next loopback normalization preserves real Host origin checks", () => {
+  const url = "http://localhost:8510/api/reply";
+  requireLocalRequest(
+    new Request(url, {
+      headers: { Host: "127.0.0.1:8510", Origin: "http://127.0.0.1:8510" },
+    }),
+  );
+  requireLocalRequest(
+    new Request(url, {
+      headers: { Host: "localhost:8510", Origin: "http://localhost:8510" },
+    }),
+  );
+  requireLocalRequest(
+    new Request(url, {
+      headers: { Host: "[::1]:8510", Origin: "http://[::1]:8510" },
+    }),
+  );
+  for (const headers of [
+    { Host: "127.0.0.1:8510", Origin: "http://evil.example" },
+    { Host: "127.0.0.1:8510", Origin: "http://localhost:8510" },
+    { Host: "127.0.0.1:8510", Origin: "http://127.0.0.1:8511" },
+    { Host: "evil.example:8510", Origin: "http://evil.example:8510" },
+    { Host: "127.0.0.1:8510", Origin: "null" },
+    { Host: "127.0.0.1:8511", Origin: "http://127.0.0.1:8511" },
+    {
+      Host: "127.0.0.1:8510",
+      Origin: "http://evil.example",
+      "x-forwarded-host": "evil.example:8510",
+    },
+  ])
+    assert.throws(() =>
+      requireLocalRequest(
+        new Request(url, { headers: headers as Record<string, string> }),
+      ),
+    );
+});

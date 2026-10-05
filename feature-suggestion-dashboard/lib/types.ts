@@ -34,3 +34,26 @@ export type Run = {
   summaries: Summary[];
   deliveries: Record<string, Delivery>;
 };
+export type Job = {
+  id: string;
+  status:
+    | "queued"
+    | "fetching"
+    | "summarizing"
+    | "sending"
+    | "done"
+    | "error"
+    | "interrupted";
+  createdAt: string;
+  updatedAt: string;
+  send: boolean;
+  config: Config;
+  fetchedPages: number;
+  fetchedTasks: number;
+  totalTickets: number;
+  completedBatches: number;
+  totalBatches: number;
+  run?: Run;
+  error?: string;
+  owner: string;
+};

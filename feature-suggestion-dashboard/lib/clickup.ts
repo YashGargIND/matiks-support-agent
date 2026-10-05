@@ -34,7 +34,11 @@ export function isSuggestion(task: Task, listId = process.env.CLICKUP_LIST_ID) {
         (listId === "901611930428" && value === "1")))
   );
 }
-async function fetchAllSuggestions(fetcher: typeof fetch = fetch) {
+type PageProgress = { pages: number; fetchedTasks: number };
+async function fetchAllSuggestions(
+  fetcher: typeof fetch = fetch,
+  onPage?: (progress: PageProgress) => Promise<void>,
+) {
   const token = process.env.CLICKUP_API_TOKEN;
   const listId = process.env.CLICKUP_LIST_ID;
   if (!token || !listId || !/^\d+$/.test(listId))
@@ -92,6 +96,7 @@ async function fetchAllSuggestions(fetcher: typeof fetch = fetch) {
         throw new Error("ClickUp returned a report without an ID.");
       unique.set(task.id, task);
     }
+    await onPage?.({ pages: page + 1, fetchedTasks: unique.size });
     if (data.last_page === true || tasks.length === 0) break;
     previous = signature;
     page++;
@@ -127,21 +132,43 @@ const cache = globalThis as typeof globalThis & {
     snapshot?: Snapshot;
     expires: number;
     pending?: Promise<Snapshot>;
+    listeners?: Set<(progress: PageProgress) => Promise<void>>;
   };
 };
 export async function fetchSuggestions(
   fetcher: typeof fetch = fetch,
   force = false,
+  onPage?: (progress: PageProgress) => Promise<void>,
 ): Promise<Snapshot> {
-  if (fetcher !== fetch) return fetchAllSuggestions(fetcher);
+  if (fetcher !== fetch) return fetchAllSuggestions(fetcher, onPage);
   const key = `${process.env.CLICKUP_LIST_ID}:${process.env.CLICKUP_TOPIC_FIELD_ID}:${process.env.CLICKUP_SUGGESTION_OPTION}`;
   if (!cache.featureClickupCache || cache.featureClickupCache.key !== key)
     cache.featureClickupCache = { key, expires: 0 };
   const state = cache.featureClickupCache;
-  if (state.pending) return state.pending;
-  if (!force && state.snapshot && state.expires > Date.now())
+  state.listeners ??= new Set();
+  if (onPage) state.listeners.add(onPage);
+  if (state.pending) {
+    try {
+      return await state.pending;
+    } finally {
+      if (onPage) state.listeners.delete(onPage);
+    }
+  }
+  if (!force && state.snapshot && state.expires > Date.now()) {
+    if (onPage) {
+      state.listeners.delete(onPage);
+      await onPage({
+        pages: state.snapshot.pages,
+        fetchedTasks: state.snapshot.fetchedTasks,
+      });
+    }
     return state.snapshot;
-  state.pending = fetchAllSuggestions(fetcher)
+  }
+  state.pending = fetchAllSuggestions(fetcher, async (progress) => {
+    await Promise.allSettled(
+      [...state.listeners!].map((listener) => listener(progress)),
+    );
+  })
     .then((snapshot) => {
       state.snapshot = snapshot;
       state.expires = Date.now() + 300000;
@@ -150,5 +177,9 @@ export async function fetchSuggestions(
     .finally(() => {
       state.pending = undefined;
     });
-  return state.pending;
+  try {
+    return await state.pending;
+  } finally {
+    if (onPage) state.listeners.delete(onPage);
+  }
 }

@@ -1,4 +1,4 @@
-import { test, beforeEach, afterEach } from "node:test";
+import { test, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -7,6 +7,9 @@ import { GET as getTickets } from "../app/api/tickets/route";
 import { GET as getConfig, PUT as putConfig } from "../app/api/config/route";
 import { POST as createSummary } from "../app/api/summaries/route";
 import { POST as sendSummary } from "../app/api/runs/[id]/send/route";
+import nextServer from "next/server";
+import { GET as getJobRoute } from "../app/api/jobs/[id]/route";
+let scheduled: (() => Promise<void>)[] = [];
 const nativeFetch = globalThis.fetch;
 let directory = "";
 const req = (path: string, method = "GET", body?: unknown) =>
@@ -19,6 +22,10 @@ const req = (path: string, method = "GET", body?: unknown) =>
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 beforeEach(async () => {
+  scheduled = [];
+  mock.method(nextServer, "after", (work: () => Promise<void>) => {
+    scheduled.push(work);
+  });
   directory = await mkdtemp(join(tmpdir(), "feature-route-test-"));
   process.env.FEATURE_DATA_DIR = directory;
   process.env.CLICKUP_API_TOKEN = "test";
@@ -27,6 +34,7 @@ beforeEach(async () => {
   delete process.env.SLACK_BOT_TOKEN;
 });
 afterEach(async () => {
+  mock.restoreAll();
   globalThis.fetch = nativeFetch;
   await rm(directory, { recursive: true, force: true });
   delete process.env.FEATURE_DATA_DIR;
@@ -84,7 +92,7 @@ test("actual Next tickets and summary handlers fetch complete data and save prev
                   {
                     moduleId: "other",
                     summary: "Add an optional dark theme.",
-                    ticketIds: ["suggestion1"],
+                    ticketIds: ["r1"],
                   },
                 ],
               }),
@@ -99,8 +107,18 @@ test("actual Next tickets and summary handlers fetch complete data and save prev
   assert.equal(response.status, 200);
   assert.equal((await response.json()).tickets.length, 1);
   response = await createSummary(req("summaries", "POST", { send: false }));
-  assert.equal(response.status, 200);
-  const run = await response.json();
+  assert.equal(response.status, 202);
+  const accepted = await response.json();
+  assert.equal(accepted.job.status, "queued");
+  assert.equal(models, 0);
+  assert.equal(scheduled.length, 1);
+  await scheduled[0]();
+  response = await getJobRoute(req(`jobs/${accepted.job.id}`), {
+    params: Promise.resolve({ id: accepted.job.id }),
+  });
+  const finished = await response.json();
+  assert.equal(finished.job.status, "done");
+  const run = finished.job.run;
   assert.equal(run.totalTickets, 1);
   assert.equal(run.deliveries.other.state, "unsent");
   assert.equal(reads, 1);

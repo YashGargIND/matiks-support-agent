@@ -1,23 +1,26 @@
-import { fetchSuggestions } from "@/lib/clickup";
-import { getConfig } from "@/lib/storage";
-import { summarize } from "@/lib/summarize";
-import { sendRun } from "@/lib/slack";
+import nextServer from "next/server";
+import { acceptJob, latestJob, processJob, publicJob } from "@/lib/jobs";
 import { failure, requireLocalRequest } from "@/lib/http";
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export async function GET(request: Request) {
+  try {
+    requireLocalRequest(request);
+    const job = await latestJob();
+    return Response.json({ job: job ? publicJob(job) : null });
+  } catch (e) {
+    return failure(e);
+  }
+}
 export async function POST(request: Request) {
   try {
     requireLocalRequest(request);
     const body = await request.json();
-    if (body.send !== false && body.send !== true)
+    if (body.send !== true && body.send !== false)
       throw new Error("Choose preview or send.");
-    if (body.send && !process.env.SLACK_BOT_TOKEN)
-      throw new Error(
-        "Add SLACK_BOT_TOKEN before summarizing and sending. Preview is available now.",
-      );
-    const config = await getConfig();
-    const { tickets, fetchedTasks } = await fetchSuggestions();
-    const run = await summarize(tickets, config, fetchedTasks);
-    return Response.json(body.send ? await sendRun(run.id) : run);
+    const result = await acceptJob(body.send);
+    if (result.scheduled) nextServer.after(() => processJob(result.job.id));
+    return Response.json({ job: publicJob(result.job) }, { status: 202 });
   } catch (e) {
     return failure(e);
   }
