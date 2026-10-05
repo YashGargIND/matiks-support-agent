@@ -1,3 +1,4 @@
+import { fixtureResponse } from "./model-fixture";
 import { test, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -68,7 +69,7 @@ test("actual Next tickets and summary handlers fetch complete data and save prev
   globalThis.fetch = (async (input) => {
     if (String(input).includes("clickup.com")) {
       reads++;
-      return Response.json({
+      return fixtureResponse({
         tasks: [
           {
             id: "suggestion1",
@@ -83,7 +84,7 @@ test("actual Next tickets and summary handlers fetch complete data and save prev
     }
     if (String(input).includes("openrouter.ai")) {
       models++;
-      return Response.json({
+      return fixtureResponse({
         choices: [
           {
             message: {

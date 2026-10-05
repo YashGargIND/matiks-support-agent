@@ -1,3 +1,4 @@
+import { fixtureResponse } from "./model-fixture";
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -11,7 +12,7 @@ import { configSchema } from "../lib/config";
 import { requireLocalRequest } from "../lib/http";
 import type { Config, Run, Ticket } from "../lib/types";
 const response = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status });
+  fixtureResponse(body, ["feed", "other"], status);
 const config: Config = {
   modules: [
     { id: "feed", name: "Feed", keywords: ["feed"], destination: "C12345678" },

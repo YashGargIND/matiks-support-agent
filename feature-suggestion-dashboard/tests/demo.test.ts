@@ -1,3 +1,4 @@
+import { fixtureResponse } from "./model-fixture";
 import { test, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -96,23 +97,26 @@ test("demo job is preview-only, one batch, separate from active normal all-repor
       JSON.parse(String(init?.body)).messages[1].content,
     ).reports;
     assert.equal(reports.length, 20);
-    return Response.json({
-      choices: [
-        {
-          message: {
-            content: JSON.stringify({
-              groups: [
-                {
-                  moduleId: "other",
-                  summary: "Users request offline learning.",
-                  ticketIds: reports.map((r: { id: string }) => r.id),
-                },
-              ],
-            }),
+    return fixtureResponse(
+      {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                groups: [
+                  {
+                    moduleId: "other",
+                    summary: "Users request offline learning.",
+                    ticketIds: reports.map((r: { id: string }) => r.id),
+                  },
+                ],
+              }),
+            },
           },
-        },
-      ],
-    });
+        ],
+      },
+      ["feed", "gameplay", "learning", "profile", "other"],
+    );
   }) as typeof fetch;
   const response = await POST(request({ send: false }));
   const accepted = await response.json();

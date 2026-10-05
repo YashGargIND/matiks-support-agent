@@ -1,3 +1,4 @@
+import { fixtureResponse } from "./model-fixture";
 import { test, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, readdir } from "node:fs/promises";
@@ -52,7 +53,7 @@ afterEach(async () => {
 function fakeProvider(): typeof fetch {
   return (async (input, init) => {
     if (String(input).includes("clickup.com"))
-      return Response.json({
+      return fixtureResponse({
         tasks: [
           {
             id: "a",
@@ -65,7 +66,7 @@ function fakeProvider(): typeof fetch {
       });
     const data = JSON.parse(String(init?.body));
     const reports = JSON.parse(data.messages[1].content).reports;
-    return Response.json({
+    return fixtureResponse({
       choices: [
         {
           message: {
@@ -135,7 +136,7 @@ test("failed provider is persisted as error and job status exposes completed bat
   const accepted = await acceptJob(false);
   const fake = (async (input) =>
     String(input).includes("clickup.com")
-      ? Response.json({
+      ? fixtureResponse({
           tasks: [{ id: "a", name: "Suggestion: fake", date_created: "1" }],
           last_page: true,
         })
@@ -196,7 +197,7 @@ test("timeout retries only failed batch and never charges successful checkpoint 
     ).reports;
     if (reports[0].title === "Suggestion: b")
       throw new DOMException("timeout", "TimeoutError");
-    return Response.json({
+    return fixtureResponse({
       choices: [
         {
           message: {
@@ -233,7 +234,7 @@ test("timeout retries only failed batch and never charges successful checkpoint 
       JSON.parse(String(init?.body)).messages[1].content,
     ).reports;
     assert.equal(reports[0].title, "Suggestion: b");
-    return Response.json({
+    return fixtureResponse({
       choices: [
         {
           message: {
