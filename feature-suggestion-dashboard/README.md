@@ -12,6 +12,8 @@ Secrets stay on the server. `.env.local` and `data/` are ignored by Git. This is
 
 ## Use
 
+For a quick **preview-only** demo, open http://127.0.0.1:8511/?demo=1. It reads the newest complete saved ClickUp snapshot locally, selects the latest 20 suggestions by date and report ID, and clearly shows the sample size, full source count and cached snapshot time. Click **Preview demo** for one bounded summary batch. The normal all-report job and its saved pointer remain separate. Refresh reconnects to the saved demo preview without starting a new model call or Slack send. Slack send controls are hidden, and the server rejects sending stored demo runs. If no complete snapshot exists, first refresh reports in the normal dashboard. The sample is real cached data, not fictional fixtures or a partial live page fetch.
+
 Refresh reports fetches every page in the configured ClickUp list, including closed tasks and subtasks, with no date cutoff. Feature requests are selected using the verified Suggestion dropdown field or an explicit `Suggestion:` / `Feature request:` title. For a different list, set its topic field and suggestion option IDs. Unrelated fields, task creators and incidental text are not used to infer a suggestion. A failed page aborts the complete fetch; partial results are never summarized. Complete snapshots are reused for five minutes, and Refresh forces a new snapshot.
 
 Edit module names, keywords and Slack destinations, then save routing. Use channel IDs (`C…` or `G…`) or PM user IDs (`U…`), not display names. Blank destinations stay unconfigured. The bot needs `chat:write`; PM DMs also need `im:write`. Invite it to the target channels. Module labels in the list use keyword matching; OpenRouter performs the final grouping.

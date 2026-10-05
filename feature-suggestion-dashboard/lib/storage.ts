@@ -5,6 +5,8 @@ import {
   rename,
   open,
   unlink,
+  readdir,
+  stat,
 } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -24,6 +26,43 @@ export async function saveJson(name: string, data: unknown) {
 }
 export async function readJson<T>(name: string): Promise<T> {
   return JSON.parse(await readFile(join(root(), name), "utf8"));
+}
+export async function latestCompleteSnapshot() {
+  const files = await readdir(root());
+  const ordered = await Promise.all(
+    files
+      .filter((name) => /^job-tickets-[a-f0-9]{64}\.json$/.test(name))
+      .map(async (name) => ({
+        name,
+        modified: (await stat(join(root(), name))).mtimeMs,
+      })),
+  );
+  ordered.sort(
+    (a, b) => b.modified - a.modified || a.name.localeCompare(b.name),
+  );
+  for (const file of ordered) {
+    const snapshot = await readJson<{
+      scope?: "all" | "demo";
+      tickets: import("./types").Ticket[];
+      complete?: boolean;
+      pages: number;
+      fetchedTasks: number;
+      fetchedAt?: string;
+    }>(file.name);
+    if (
+      snapshot.scope !== "demo" &&
+      snapshot.complete === true &&
+      Array.isArray(snapshot.tickets) &&
+      snapshot.pages > 0
+    )
+      return {
+        ...snapshot,
+        snapshotAt: snapshot.fetchedAt || new Date(file.modified).toISOString(),
+      };
+  }
+  throw new Error(
+    "No complete cached snapshot is available. Refresh reports in the normal dashboard once, then open quick demo.",
+  );
 }
 export async function getConfig(): Promise<Config> {
   try {

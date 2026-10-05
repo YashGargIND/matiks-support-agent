@@ -56,6 +56,7 @@ function moduleFor(ticket: Ticket, config: Config) {
   );
 }
 export default function Dashboard() {
+  const [demo, setDemo] = useState(false);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [config, setConfig] = useState<Config>({ modules: [] });
   const [savedConfig, setSavedConfig] = useState("");
@@ -73,6 +74,8 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [fetched, setFetched] = useState<{
+    sourceTickets?: number;
+    snapshotAt?: string;
     fetchedTasks: number;
     fetchedAt: string;
     pages: number;
@@ -82,18 +85,29 @@ export default function Dashboard() {
   const working = !!busy || jobActive(job);
   const [selected, setSelected] = useState<Ticket | null>(null);
   const dirty = JSON.stringify(config) !== savedConfig;
-  async function load(force = false) {
-    setBusy("Fetching all ClickUp pages…");
+  async function load(force = false, demoMode = demo) {
+    setBusy(
+      demoMode ? "Loading cached demo sample…" : "Fetching all ClickUp pages…",
+    );
     setError("");
     try {
       const data = await api<{
+        job?: Job | null;
+        sourceTickets?: number;
+        snapshotAt?: string;
         tickets: Ticket[];
         fetchedTasks: number;
         fetchedAt: string;
         pages: number;
-      }>(`/api/tickets${force ? "?refresh=true" : ""}`);
+      }>(
+        demoMode ? "/api/demo" : `/api/tickets${force ? "?refresh=true" : ""}`,
+      );
       setTickets(data.tickets);
       setFetched(data);
+      if (demoMode) {
+        setJob(data.job || null);
+        if (data.job?.run) setRun(data.job.run);
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -102,6 +116,9 @@ export default function Dashboard() {
   }
   useEffect(() => {
     let active = true;
+    const demoMode =
+      new URLSearchParams(window.location.search).get("demo") === "1";
+    setDemo(demoMode);
     api<{ config: Config; credentials: typeof credentials }>("/api/config")
       .then((data) => {
         if (active) {
@@ -111,15 +128,16 @@ export default function Dashboard() {
         }
       })
       .catch((e) => setError(e.message));
-    api<{ job: Job | null }>("/api/summaries")
-      .then(({ job }) => {
-        if (active) {
-          setJob(job);
-          if (job?.run) setRun(job.run);
-        }
-      })
-      .catch((e) => setError(e.message));
-    void load();
+    if (!demoMode)
+      api<{ job: Job | null }>("/api/summaries")
+        .then(({ job }) => {
+          if (active) {
+            setJob(job);
+            if (job?.run) setRun(job.run);
+          }
+        })
+        .catch((e) => setError(e.message));
+    void load(false, demoMode);
     return () => {
       active = false;
     };
@@ -185,9 +203,13 @@ export default function Dashboard() {
     setError("");
     setNotice("");
     try {
-      const result = await api<{ job: Job }>("/api/summaries", "POST", {
-        send,
-      });
+      const result = await api<{ job: Job }>(
+        demo ? "/api/demo" : "/api/summaries",
+        "POST",
+        {
+          send: demo ? false : send,
+        },
+      );
       setJob(result.job);
       if (result.job.run) setRun(result.job.run);
     } catch (e) {
@@ -233,14 +255,14 @@ export default function Dashboard() {
       <header>
         <div className="brand">MATIKS</div>
         <div className="divider" />
-        <h1>Feature requests</h1>
+        <h1>{demo ? "Feature requests · Quick demo" : "Feature requests"}</h1>
         <button
           className="outline refresh"
           onClick={() => void load(true)}
           disabled={working}
         >
           <Icon type="refresh" />
-          Refresh reports
+          {demo ? "Reload sample" : "Refresh reports"}
         </button>
       </header>
       <div className="toolbar">
@@ -270,18 +292,19 @@ export default function Dashboard() {
           disabled={
             working ||
             dirty ||
-            !credentials.slack ||
+            (!demo && !credentials.slack) ||
             !credentials.openrouter ||
             !tickets.length
           }
-          onClick={() => void summarize(true)}
+          onClick={() => void summarize(!demo)}
         >
           <Icon type="send" />
-          Summarize and send
+          {demo ? "Preview demo" : "Summarize and send"}
         </button>
         <p className="search-hint">
-          Search narrows the list. Summaries always cover every suggestion in
-          ClickUp.
+          {demo
+            ? "Preview only: latest 20 suggestions from the cached complete snapshot. No Slack messages are sent."
+            : "Search narrows the list. Summaries always cover every suggestion in ClickUp."}
         </p>
       </div>
       <div aria-live="polite" className="messages">
@@ -327,7 +350,7 @@ export default function Dashboard() {
           </p>
         )}
         {notice && <p className="notice">{notice}</p>}
-        {!credentials.slack && (
+        {!demo && !credentials.slack && (
           <p className="setup">
             Slack is not connected. Add <code>SLACK_BOT_TOKEN</code> to this
             app’s private <code>.env.local</code> and restart. Preview summaries
@@ -343,7 +366,9 @@ export default function Dashboard() {
           <h2>Feature requests</h2>
           <p className="sub">
             {fetched
-              ? `${tickets.length} suggestions from all ${fetched.fetchedTasks} reports · ${fetched.pages} pages fetched`
+              ? demo
+                ? `Demo sample: ${tickets.length} of ${fetched.sourceTickets || tickets.length} suggestions · Cached ${new Date(fetched.snapshotAt || fetched.fetchedAt).toLocaleString()}`
+                : `${tickets.length} suggestions from all ${fetched.fetchedTasks} reports · ${fetched.pages} pages fetched`
               : "Fetching your ClickUp suggestions…"}
           </p>
           <div className="table-head">
@@ -394,9 +419,12 @@ export default function Dashboard() {
           </div>
           {fetched && (
             <p className="footnote">
-              Last fetched {new Date(fetched.fetchedAt).toLocaleString()} · All
-              dates included, open and closed. Module labels here use keywords;
-              summaries use AI grouping.
+              {demo ? "Cached complete snapshot" : "Last fetched"}{" "}
+              {new Date(fetched.fetchedAt).toLocaleString()} ·{" "}
+              {demo
+                ? "Latest20 selected from the cached complete dataset; no live refresh."
+                : "All dates included, open and closed."}{" "}
+              Module labels here use keywords; summaries use AI grouping.
             </p>
           )}
         </section>
@@ -543,11 +571,13 @@ export default function Dashboard() {
                 }
                 onClick={() => void summarize(false)}
               >
-                Preview summaries
+                {demo ? "Preview demo" : "Preview summaries"}
               </button>
             </div>
             <p className="sub">
-              AI summaries of all feature requests, grouped by module.
+              {demo
+                ? "Preview of the latest 20 suggestions only, grouped by module."
+                : "AI summaries of all feature requests, grouped by module."}
             </p>
             {!run ? (
               <p className="empty">
@@ -556,8 +586,11 @@ export default function Dashboard() {
             ) : (
               <>
                 <p className="coverage">
-                  All {run.totalTickets} suggestions covered · {run.modelCalls}{" "}
-                  model {run.modelCalls === 1 ? "call" : "calls"} · Saved{" "}
+                  {demo
+                    ? `Demo sample: ${run.totalTickets} of ${run.sourceTickets || fetched?.sourceTickets || run.totalTickets} suggestions covered`
+                    : `All ${run.totalTickets} suggestions covered`}{" "}
+                  · {run.modelCalls} model{" "}
+                  {run.modelCalls === 1 ? "call" : "calls"} · Saved{" "}
                   {new Date(run.createdAt).toLocaleString()}
                 </p>
                 {run.summaries.map((g) => {
@@ -603,16 +636,19 @@ export default function Dashboard() {
                     </article>
                   );
                 })}
-                <button
-                  className="primary"
-                  disabled={working || !credentials.slack}
-                  onClick={sendSaved}
-                >
-                  Send unsent summaries
-                </button>
+                {!demo && (
+                  <button
+                    className="primary"
+                    disabled={working || !credentials.slack}
+                    onClick={sendSaved}
+                  >
+                    Send unsent summaries
+                  </button>
+                )}
                 <p className="footnote">
-                  Already sent modules are skipped. Uncertain deliveries require
-                  a manual Slack check.
+                  {demo
+                    ? "Quick demo is preview only. No Slack messages are sent."
+                    : "Already sent modules are skipped. Uncertain deliveries require a manual Slack check."}
                 </p>
               </>
             )}

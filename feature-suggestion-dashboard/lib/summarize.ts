@@ -72,6 +72,7 @@ export async function summarize(
   fetchedTasks: number,
   fetcher: typeof fetch = fetch,
   onProgress?: (completed: number, total: number) => Promise<void>,
+  scope: "all" | "demo" = "all",
 ): Promise<Run> {
   if (!tickets.length)
     throw new Error("No feature requests or suggestions were found.");
@@ -84,6 +85,7 @@ export async function summarize(
         config,
         model: process.env.OPENROUTER_MODEL || "openai/gpt-4.1-mini",
         format: "bounded-batches-v2",
+        ...(scope === "demo" ? { scope: "demo" } : {}),
       }),
     )
     .digest("hex");
@@ -289,6 +291,7 @@ export async function summarize(
     // Every disjoint batch passed exact coverage validation; retain complete summaries without truncation.
     const groups = [...summaries.values()];
     const run: Run = {
+      scope,
       id,
       createdAt: new Date().toISOString(),
       totalTickets: tickets.length,

@@ -30,6 +30,10 @@ export async function sendRun(
     throw new Error("Configure SLACK_BOT_TOKEN in .env.local before sending.");
   return withRunLock(id, async () => {
     const run = await getRun(id);
+    if (run.scope === "demo")
+      throw new Error(
+        "Quick demo previews cannot be sent to Slack. Use a normal all-suggestions job.",
+      );
     for (const group of run.summaries) {
       const delivery = run.deliveries[group.moduleId];
       if (["sent", "unknown", "sending"].includes(delivery.state)) continue;

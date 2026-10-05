@@ -1,9 +1,10 @@
 import { randomUUID, createHash } from "node:crypto";
-import { getConfig, readJson, saveJson } from "./storage";
+import { getConfig, readJson, saveJson, saveRun } from "./storage";
 import { fetchSuggestions } from "./clickup";
 import { summarize } from "./summarize";
 import { sendRun } from "./slack";
 import type { Job, Ticket } from "./types";
+import { demoSnapshot } from "./demo";
 const state = globalThis as typeof globalThis & {
   featureJobs?: {
     runtime: string;
@@ -47,9 +48,13 @@ export async function getJob(id: string): Promise<Job> {
   }
   return job;
 }
-export async function latestJob(): Promise<Job | null> {
+export async function latestJob(
+  scope: "all" | "demo" = "all",
+): Promise<Job | null> {
   try {
-    const pointer = await readJson<{ id: string }>("latest-job.json");
+    const pointer = await readJson<{ id: string }>(
+      scope === "demo" ? "latest-demo-job.json" : "latest-job.json",
+    );
     return await getJob(pointer.id);
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
@@ -63,7 +68,10 @@ async function exclusive<T>(work: () => Promise<T>): Promise<T> {
 }
 export async function acceptJob(
   send: boolean,
+  scope: "all" | "demo" = "all",
 ): Promise<{ job: Job; scheduled: boolean }> {
+  if (scope === "demo" && send)
+    throw new Error("Quick demo is preview only. Slack sending is disabled.");
   if (send && !process.env.SLACK_BOT_TOKEN)
     throw new Error(
       "Add SLACK_BOT_TOKEN before summarizing and sending. Preview is available now.",
@@ -71,7 +79,7 @@ export async function acceptJob(
   if (!process.env.OPENROUTER_API_KEY)
     throw new Error("Configure OPENROUTER_API_KEY in .env.local.");
   return exclusive(async () => {
-    const previous = await latestJob();
+    const previous = await latestJob(scope);
     if (previous && !terminal(previous))
       return { job: previous, scheduled: false };
     const config = await getConfig();
@@ -82,6 +90,7 @@ export async function acceptJob(
       createdAt: now,
       updatedAt: now,
       send,
+      scope,
       config,
       fetchedPages: 0,
       fetchedTasks: 0,
@@ -91,7 +100,10 @@ export async function acceptJob(
       owner: runtime().runtime,
     };
     await saveJob(job);
-    await saveJson("latest-job.json", { id: job.id });
+    await saveJson(
+      scope === "demo" ? "latest-demo-job.json" : "latest-job.json",
+      { id: job.id },
+    );
     return { job, scheduled: true };
   });
 }
@@ -100,7 +112,7 @@ export async function retryJob(
 ): Promise<{ job: Job; scheduled: boolean }> {
   return exclusive(async () => {
     const job = await getJob(id);
-    const current = await latestJob();
+    const current = await latestJob(job.scope || "all");
     if (current && !terminal(current))
       return { job: current, scheduled: false };
     if (job.status === "done") return { job, scheduled: false };
@@ -114,7 +126,10 @@ export async function retryJob(
     job.owner = runtime().runtime;
     delete job.error;
     await saveJob(job);
-    await saveJson("latest-job.json", { id: job.id });
+    await saveJson(
+      job.scope === "demo" ? "latest-demo-job.json" : "latest-job.json",
+      { id: job.id },
+    );
     return { job, scheduled: true };
   });
 }
@@ -128,22 +143,43 @@ export async function processJob(id: string, fetcher: typeof fetch = fetch) {
     if (terminal(job)) return;
     job.status = "fetching";
     await saveJob(job);
-    let snapshot: { tickets: Ticket[]; fetchedTasks: number; pages: number };
+    let snapshot: {
+      tickets: Ticket[];
+      fetchedTasks: number;
+      pages: number;
+      sourceTickets?: number;
+      snapshotAt?: string;
+    };
     try {
       snapshot = await readJson(`job-tickets-${id}.json`);
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
       const fetchingJob = job;
-      snapshot = await fetchSuggestions(fetcher, false, async (progress) => {
-        fetchingJob.fetchedPages = progress.pages;
-        fetchingJob.fetchedTasks = progress.fetchedTasks;
-        await saveJob(fetchingJob);
-      });
+      snapshot =
+        job.scope === "demo"
+          ? await demoSnapshot()
+          : await fetchSuggestions(fetcher, false, async (progress) => {
+              fetchingJob.fetchedPages = progress.pages;
+              fetchingJob.fetchedTasks = progress.fetchedTasks;
+              await saveJob(fetchingJob);
+            });
       await saveJson(`job-tickets-${id}.json`, snapshot);
     }
     job.fetchedPages = snapshot.pages;
     job.fetchedTasks = snapshot.fetchedTasks;
     job.totalTickets = snapshot.tickets.length;
+    job.sourceTickets = snapshot.sourceTickets ?? snapshot.tickets.length;
+    job.snapshotAt = snapshot.snapshotAt;
+    if (
+      job.scope === "demo" &&
+      snapshot.tickets.reduce(
+        (sum, ticket) => sum + JSON.stringify(ticket).length,
+        0,
+      ) > 24000
+    )
+      throw new Error(
+        "The latest20 reports exceed one bounded demo batch. Nothing was sent; use the normal dashboard for full coverage.",
+      );
     job.status = "summarizing";
     await saveJob(job);
     const activeJob = job;
@@ -157,7 +193,17 @@ export async function processJob(id: string, fetcher: typeof fetch = fetch) {
         activeJob.totalBatches = total;
         await saveJob(activeJob);
       },
+      job.scope || "all",
     );
+    if (job.scope === "demo") {
+      job.run = {
+        ...job.run,
+        scope: "demo",
+        sourceTickets: job.sourceTickets,
+        snapshotAt: job.snapshotAt,
+      };
+      await saveRun(job.run);
+    }
     if (job.send) {
       job.status = "sending";
       await saveJob(job);

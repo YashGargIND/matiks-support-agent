@@ -25,6 +25,9 @@ export type Delivery = {
   timestamp?: string;
 };
 export type Run = {
+  scope?: "all" | "demo";
+  sourceTickets?: number;
+  snapshotAt?: string;
   id: string;
   createdAt: string;
   totalTickets: number;
@@ -35,6 +38,9 @@ export type Run = {
   deliveries: Record<string, Delivery>;
 };
 export type Job = {
+  scope?: "all" | "demo";
+  sourceTickets?: number;
+  snapshotAt?: string;
   id: string;
   status:
     | "queued"
